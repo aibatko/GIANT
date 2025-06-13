@@ -27,7 +27,6 @@ learning_rate = 2e-4 # 1e-4
 weight_decay = 1e-2
 batch_size = 8 # 16
 num_epochs = 1 # 5
-acc_steps = 2 # 4
 
 # Other Settings
 use_remat = True
