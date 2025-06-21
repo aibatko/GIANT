@@ -37,14 +37,21 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 from tqdm.auto import tqdm
 
+from omegaconf import OmegaConf
+Config = OmegaConf.load("Config.yml")
+
 # ────────────────────────────────
 # Configuration constants
 # ────────────────────────────────
-DATASET_VENDOR = "Salesforce/wikitext"
-DATASET_NAME   = "wikitext-2-raw-v1"
+# DATASET_VENDOR = "Salesforce/wikitext"
+# DATASET_NAME   = "wikitext-2-raw-v1"
+DATASET_VENDOR = Config.dataset_vendor
+DATASET_NAME   = Config.dataset_name
 
-TOKENIZER_NAME = "EleutherAI/gpt-neo-125M"
-CACHE_DIR      = Path("tiny_cached")
+# TOKENIZER_NAME = "EleutherAI/gpt-neo-125M"
+TOKENIZER_NAME = Config.tokenizer_name
+# CACHE_DIR      = Path("tiny_cached")
+CACHE_DIR      = Path(Config.tokenizer_path)
 
 VAL_EVERY_N_WIN = 33          # deterministic interleaving train/val
 STRIDE_FRAC     = 0.5         # 50 % overlap between successive windows
@@ -86,7 +93,10 @@ def _iter_windows(ds, ctx: int, stride: int):
 # ────────────────────────────────
 
 def _encode_stream(ctx: int, subset_pct: float) -> Tuple[List[Path], List[Path]]:
-    ds = load_dataset(DATASET_VENDOR, DATASET_NAME, split="train")
+    if Config.dataset_has_vendor:
+        ds = load_dataset(DATASET_VENDOR, DATASET_NAME, split="train")
+    else:
+        ds = load_dataset(DATASET_NAME, split="train")
     stride = max(1, int(ctx * STRIDE_FRAC))
 
     # optional subset
@@ -107,7 +117,7 @@ def _encode_stream(ctx: int, subset_pct: float) -> Tuple[List[Path], List[Path]]
     train_pos = val_pos = 0
     win_cnt = 0
 
-    pbar = tqdm(total=len(ds), desc="packing", unit="line")
+    pbar = tqdm( desc="packing", unit="window")
     for window in _iter_windows(ds, ctx, stride):
         target_mm, target_pos = (
             (val_mm, val_pos) if (win_cnt % VAL_EVERY_N_WIN == 0)
@@ -134,7 +144,8 @@ def _encode_stream(ctx: int, subset_pct: float) -> Tuple[List[Path], List[Path]]
             train_path, train_mm = _new_mm("train_tokens", shard)
             val_path,   val_mm   = _new_mm("val_tokens",   shard)
             train_pos = val_pos = 0
-        pbar.update(stride)  # update tqdm by the number of tokens processed
+        # pbar.update(stride)  # update tqdm by the number of tokens processed
+        pbar.update(1)
     # final flush
     train_mm.flush(); val_mm.flush()
     for path, rows in [(train_path, train_pos), (val_path, val_pos)]:
