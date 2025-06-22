@@ -18,7 +18,6 @@ from omegaconf import OmegaConf
 Config = OmegaConf.load("Config.yml")
 
 import jax.numpy as jnp
-from transformers import AutoTokenizer
 
 from GiantGPT import GiantGPT
 from Training_step    import train_step
@@ -26,10 +25,8 @@ from Evaluate         import evaluate
 from Data_loader      import data_loader
 from Save_params      import save_params
 import numpy as np, time, pathlib, pickle, functools, math
-if Config.use_custom_dataset:
-    from prepare_my_dataset import get_data
-else:
-    from prepare_dataset  import get_data
+
+from prepare_dataset import get_data
 
 def main():
     for k, v in Config.__dict__.items():
@@ -51,7 +48,7 @@ def main():
 
     model = GiantGPT(
         # vocab_size = Config.vocab_size,
-        vocab_size = AutoTokenizer.from_pretrained(Config.tokenizer_name).vocab_size,
+        vocab_size = tokenizer.vocab_size,
         context_length    = Config.context_length,
         d_model    = Config.embedding_size,
         n_heads    = Config.num_heads,
