@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
+from checkpoint_io import load_npz
 
 import jax.lax as lax
 
@@ -49,7 +50,7 @@ def load_checkpoint(path: Path):
         with path.open("rb") as f:
             params = pickle.load(f)
     elif ext == ".npz":
-        params = dict(np.load(path, allow_pickle=True))
+        params = load_npz(path)
     else:  
         arr = np.load(path, allow_pickle=True)
         params = arr.item() if hasattr(arr, "item") else arr
@@ -67,6 +68,16 @@ def init_caches(model: GiantGPT, params: dict, batch_size: int = 1):
     )
     # return variables.pop("params")  
     return variables["cache"]
+
+def preprocess_prompt_no_EOS(tokenizer, prompt: str, max_len: int):
+    ids = tokenizer.encode(prompt, add_special_tokens=False)
+
+    if ids and ids[-1] == tokenizer.eos_token_id:
+        ids = ids[:-1]
+
+    if len(ids) >= max_len:
+        ids = ids[-max_len:]
+    return np.array(ids, dtype="int32")
 
 def preprocess_prompt(tokenizer, prompt: str, max_len: int):
     ids = tokenizer(prompt, return_tensors="np").input_ids[0]
